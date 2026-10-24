@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Web Tech Quiz</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;800&family=Inter:wght@400;600&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --ok: #2e9e6b;
+            --bad: #d8453f;
+            --late: #e8a317;
+            --now: #3b6fd8;
+            --idle: #c9ced8;
+        }
+
+        [data-bs-theme="dark"] {
+            --idle: #3a4150;
+            --bs-body-bg: #12151c;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            min-height: 100vh;
+        }
+
+        h1,
+        h2,
+        .display {
+            font-family: 'Fraunces', Georgia, serif;
+        }
+
+        .quiz-card {
+            max-width: 680px;
+            margin: 0 auto;
+        }
+
+        .segments {
+            display: flex;
+            gap: 6px;
+        }
+
+        .seg {
+            flex: 1;
+            height: 12px;
+            border-radius: 6px;
+            background: var(--idle);
+            transition: background .3s;
+        }
+
+        .seg.ok {
+            background: var(--ok)
+        }
+
+        .seg.bad {
+            background: var(--bad)
+        }
+
+        .seg.late {
+            background: var(--late)
+        }
+
+        .seg.now {
+            background: var(--now)
+        }
+
+        .timer-ring {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            font-weight: 700;
+            font-size: 1.2rem;
+            background: conic-gradient(var(--now) calc(var(--p, 100)*1%), var(--idle) 0);
+            position: relative;
+        }
+
+        .timer-ring::after {
+            content: "";
+            position: absolute;
+            inset: 6px;
+            border-radius: 50%;
+            background: var(--bs-body-bg);
+        }
+
+        .timer-ring span {
+            position: relative;
+            z-index: 1;
+        }
+
+        .timer-ring.low {
+            --now: var(--bad);
+        }
+
+        .opt {
+            text-align: left;
+            border: 2px solid var(--bs-border-color);
+            background: var(--bs-body-bg);
+            color: var(--bs-body-color);
+            padding: .85rem 1rem;
+            border-radius: .75rem;
+            width: 100%;
+            transition: border-color .15s, background .15s;
+        }
+
+        .opt:hover:not(:disabled) {
+            border-color: var(--now);
+        }
+
+        .opt:focus-visible {
+            outline: 3px solid var(--now);
+            outline-offset: 2px;
+        }
+
+        .opt.correct {
+            border-color: var(--ok);
+            background: rgba(46, 158, 107, .18);
+        }
+
+        .opt.wrong {
+            border-color: var(--bad);
+            background: rgba(216, 69, 63, .18);
+        }
+
+        .opt:disabled {
+            cursor: default;
+            color: var(--bs-body-color);
+        }
+
+        .legend i {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 4px;
+        }
+
+        @media (prefers-reduced-motion:reduce) {
+            * {
+                transition: none !important
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container py-4">
+        <div class="quiz-card">
+            <header class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 m-0">Web Tech Quiz</h1>
+                <button id="themeBtn" class="btn btn-outline-secondary btn-sm"
+                    aria-label="Toggle dark or light mode">Dark mode</button>
+            </header>
+
+            <!-- Start -->
+            <section id="start" class="card p-4 text-center">
+                <h2 class="h4">Ready to test your web basics?</h2>
+                <p class="text-body-secondary">5 random questions. 20 seconds each. Answers are marked as soon as you
+                    pick one.</p>
+                <button id="startBtn" class="btn btn-primary btn-lg mx-auto">Start quiz</button>
+            </section>
+
+            <!-- Quiz -->
+            <section id="quiz" class="d-none">
+                <div class="segments mb-2" id="segments" role="progressbar" aria-label="Quiz progress"></div>
+                <div class="legend small text-body-secondary mb-3 d-flex flex-wrap gap-3">
+                    <span><i style="background:var(--ok)"></i>Correct</span>
+                    <span><i style="background:var(--bad)"></i>Wrong</span>
+                    <span><i style="background:var(--late)"></i>Time out</span>
+                </div>
+                <div class="card p-3 p-md-4">
+                    <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+                        <div>
+                            <div class="small text-body-secondary" id="counter"></div>
+                            <h2 class="h4 mt-1" id="question" aria-live="polite"></h2>
+                        </div>
+                        <div class="timer-ring" id="timer"><span id="timeText">20</span></div>
+                    </div>
+                    <div class="d-grid gap-2" id="options"></div>
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <span id="feedback" class="fw-semibold"></span>
+                        <button id="nextBtn" class="btn btn-primary d-none">Next</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Results -->
+            <section id="result" class="card p-4 d-none">
+                <h2 class="h3">Your result</h2>
+                <p class="display fs-1 m-0" id="score"></p>
+                <p class="text-body-secondary" id="summary"></p>
+                <div class="d-flex flex-wrap gap-2">
+                    <button id="pdfBtn" class="btn btn-success">Download PDF</button>
+                    <button id="againBtn" class="btn btn-outline-primary">Try again</button>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script>
+        const BANK = [
+            {q: "Which HTML tag holds the page's visible content?", a: ["<head>", "<body>", "<meta>", "<title>"], c: 1},
+            {q: "Which CSS property changes the text color?", a: ["font-color", "text-style", "color", "fill"], c: 2},
+            {q: "Which keyword declares a block-scoped variable in JavaScript?", a: ["var", "let", "dim", "define"], c: 1},
+            {q: "In Bootstrap, which class creates a fixed-width responsive container?", a: [".container", ".wrapper", ".box", ".frame"], c: 0},
+            {q: "Which CSS layout module is best for one-dimensional rows or columns?", a: ["Float", "Table", "Flexbox", "Position"], c: 2},
+            {q: "Which method adds an event listener to an element?", a: ["onEvent()", "addEventListener()", "listen()", "attachClick()"], c: 1},
+            {q: "What does the viewport meta tag help with?", a: ["SEO ranking", "Responsive scaling on mobile", "Faster loading", "Cookie storage"], c: 1},
+            {q: "Which JavaScript method converts a JSON string into an object?", a: ["JSON.parse()", "JSON.stringify()", "JSON.object()", "JSON.decode()"], c: 0}
+        ];
+        const TOTAL = 5, TIME = 20;
+        const $ = id => document.getElementById(id);
+        const shuffle = arr => {const a = [...arr]; for (let i = a.length - 1; i > 0; i--) {const j = Math.floor(Math.random() * (i + 1));[a[i], a[j]] = [a[j], a[i]];} return a;};
+
+        let qs = [], idx = 0, results = [], left = TIME, tick = null, locked = false;
+
+        // Theme
+        const root = document.documentElement;
+        function setTheme(t) {
+            root.setAttribute('data-bs-theme', t); $('themeBtn').textContent = t === 'dark' ? 'Light mode' : 'Dark mode';
+            try {localStorage.setItem('theme', t)} catch (e) { }
+        }
+        let saved = null; try {saved = localStorage.getItem('theme')} catch (e) { }
+        setTheme(saved || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+        $('themeBtn').onclick = () => setTheme(root.getAttribute('data-bs-theme') === 'dark' ? 'light' : 'dark');
+
+        function start() {
+            // Randomize question order and each question's options
+            qs = shuffle(BANK).slice(0, TOTAL).map(x => {
+                const opts = shuffle(x.a.map((t, i) => ({t, ok: i === x.c})));
+                return {q: x.q, opts};
+            });
+            idx = 0; results = Array(TOTAL).fill(null);
+            $('start').classList.add('d-none'); $('result').classList.add('d-none'); $('quiz').classList.remove('d-none');
+            show();
+        }
+
+        function drawSegments() {
+            $('segments').innerHTML = results.map((r, i) => {
+                const cls = r ? r.status : (i === idx ? 'now' : '');
+                return `<div class="seg ${cls}"></div>`;
+            }).join('');
+            $('segments').setAttribute('aria-valuenow', results.filter(Boolean).length);
+            $('segments').setAttribute('aria-valuemax', TOTAL);
+        }
+
+        function show() {
+            locked = false; const q = qs[idx];
+            $('counter').textContent = `Question ${idx + 1} of ${TOTAL}`;
+            $('question').textContent = q.q;
+            $('feedback').textContent = ''; $('nextBtn').classList.add('d-none');
+            $('nextBtn').textContent = idx === TOTAL - 1 ? 'See result' : 'Next';
+            $('options').innerHTML = '';
+            q.opts.forEach((o, i) => {
+                const b = document.createElement('button'); b.className = 'opt'; b.textContent = o.t; b.onclick = () => answer(i); $('options').append(b);
+            });
+            drawSegments(); startTimer();
+        }
+
+        function startTimer() {
+            clearInterval(tick); left = TIME; paint();
+            tick = setInterval(() => {left--; paint(); if (left <= 0) {clearInterval(tick); answer(-1);} }, 1000);
+        }
+        function paint() {
+            $('timeText').textContent = left; $('timer').style.setProperty('--p', left / TIME * 100);
+            $('timer').classList.toggle('low', left <= 5);
+        }
+
+        function answer(i) {
+            if (locked) return; locked = true; clearInterval(tick);
+            const q = qs[idx], btns = [...$('options').children];
+            btns.forEach((b, k) => {b.disabled = true; if (q.opts[k].ok) b.classList.add('correct');});
+            let status, text;
+            if (i === -1) {status = 'late'; text = "Time's up. The correct answer is highlighted.";}
+            else if (q.opts[i].ok) {status = 'ok'; text = 'Correct!';}
+            else {status = 'bad'; btns[i].classList.add('wrong'); text = 'Wrong. The correct answer is highlighted.';}
+            results[idx] = {status, picked: i === -1 ? 'No answer' : q.opts[i].t, correct: q.opts.find(o => o.ok).t, q: q.q};
+            $('feedback').textContent = text; drawSegments();
+            $('nextBtn').classList.remove('d-none'); $('nextBtn').focus();
+        }
+
+        $('nextBtn').onclick = () => {idx++; idx < TOTAL ? show() : finish();};
+
+        function finish() {
+            $('quiz').classList.add('d-none'); $('result').classList.remove('d-none');
+            const n = results.filter(r => r.status === 'ok').length;
+            $('score').textContent = `${n} / ${TOTAL}`;
+            $('summary').textContent = n === TOTAL ? 'Perfect score.' : n >= 3 ? 'Good work. Review the ones you missed.' : 'Keep practicing and try again.';
+        }
+
+        $('pdfBtn').onclick = () => {
+            const {jsPDF} = window.jspdf; const doc = new jsPDF(); let y = 20;
+            const n = results.filter(r => r.status === 'ok').length;
+            doc.setFontSize(18); doc.text('Web Tech Quiz - Results', 14, y); y += 10;
+            doc.setFontSize(12); doc.text(`Score: ${n} / ${TOTAL}   Date: ${new Date().toLocaleString()}`, 14, y); y += 12;
+            const label = {ok: 'Correct', bad: 'Wrong', late: 'Time out'};
+            results.forEach((r, i) => {
+                const lines = doc.splitTextToSize(`${i + 1}. ${r.q}`, 180);
+                if (y + lines.length * 6 + 22 > 280) {doc.addPage(); y = 20;}
+                doc.setFont(undefined, 'bold'); doc.text(lines, 14, y); y += lines.length * 6;
+                doc.setFont(undefined, 'normal');
+                doc.text(`Your answer: ${r.picked}`, 18, y); y += 6;
+                doc.text(`Correct answer: ${r.correct}`, 18, y); y += 6;
+                doc.text(`Result: ${label[r.status]}`, 18, y); y += 11;
+            });
+            doc.save('quiz-results.pdf');
+        };
+
+        $('startBtn').onclick = start; $('againBtn').onclick = start;
+    </script>
+</body>
+
+</html>
